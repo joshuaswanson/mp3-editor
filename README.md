@@ -27,6 +27,10 @@ The build script creates a self-contained app bundle with its own Python virtual
 
 Check the [Releases](../../releases) page for pre-built downloads.
 
+## Technical Details
+
+UI is built with SwiftUI. ID3 tag reading/writing is handled by a Python backend using [mutagen](https://mutagen.readthedocs.io/). Swift communicates with Python via JSON over stdin/stdout pipes. Album art is transferred as base64-encoded data.
+
 ## License
 
 MIT
