@@ -13,21 +13,15 @@ A simple macOS app for editing ID3 tags on MP3 files.
 ## Requirements
 
 - macOS 13.0+
-- Python 3 with `mutagen` library
+- Python 3
 
 ## Building
 
-1. Install the Python dependency:
-   ```bash
-   pip3 install mutagen
-   ```
+```bash
+./build-app.sh
+```
 
-2. Build the app:
-   ```bash
-   ./build-app.sh
-   ```
-
-3. The built app will be at `MP3Editor.app` - drag it to your Applications folder.
+The build script creates a self-contained app bundle with its own Python virtual environment and dependencies. The built app will be at `MP3Editor.app` - drag it to your Applications folder.
 
 ## Download
 
