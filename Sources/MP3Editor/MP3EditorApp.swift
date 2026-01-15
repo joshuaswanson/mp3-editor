@@ -1118,7 +1118,8 @@ struct WaveformView: View {
                         let maxBarHeight = size.height
 
                         for (index, sample) in samples.enumerated() {
-                            let scaledSample = pow(CGFloat(sample), 0.6)
+                            // Apply x^20 for strong visual variance
+                            let scaledSample = pow(CGFloat(sample), 20)
                             let minHeight: CGFloat = 4
                             let barHeight = minHeight + scaledSample * (maxBarHeight - minHeight)
 
