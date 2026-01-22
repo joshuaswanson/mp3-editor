@@ -1,6 +1,6 @@
 # Build artifacts
 .build/
-MP3Editor.app/
+MP3 Editor.app/
 
 # Python
 venv/
