@@ -1,4 +1,4 @@
-# MP3Editor
+# MP3 Editor
 
 A little macOS app for editing MP3 metadata and audio without the command line or a full DAW.
 
