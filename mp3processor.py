@@ -14,6 +14,7 @@ import plistlib
 import xattr
 from pathlib import Path
 
+
 try:
     from mutagen.mp3 import MP3
     from mutagen.id3 import ID3, TIT2, TPE1, TALB, TCON, TYER, TRCK, TPOS, TBPM, TCMP, APIC
@@ -23,10 +24,13 @@ except ImportError:
 
 try:
     from pydub import AudioSegment
-    import imageio_ffmpeg
+    import static_ffmpeg
+    from contextlib import redirect_stdout, redirect_stderr
+    import io
 
-    # Use ffmpeg bundled with imageio-ffmpeg (no system ffmpeg required)
-    AudioSegment.converter = imageio_ffmpeg.get_ffmpeg_exe()
+    # Setup static ffmpeg and ffprobe binaries (suppress any download output)
+    with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
+        static_ffmpeg.add_paths()
 except ImportError:
     AudioSegment = None
 
