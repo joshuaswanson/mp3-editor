@@ -14,7 +14,7 @@ fi
 
 APP_NAME="MP3Editor"
 BUILD_DIR=".build/release"
-APP_BUNDLE="${APP_NAME}.app"
+APP_BUNDLE="MP3 Editor.app"
 VENV_DIR="${APP_BUNDLE}/Contents/Resources/venv"
 
 echo "Building ${APP_NAME} in release mode..."
