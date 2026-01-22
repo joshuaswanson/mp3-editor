@@ -23,6 +23,22 @@ except ImportError:
 
 try:
     from pydub import AudioSegment
+    import pydub.utils
+
+    # Configure ffmpeg path for when launched from Finder (minimal PATH)
+    ffmpeg_paths = [
+        "/opt/homebrew/bin/ffmpeg",  # Homebrew on Apple Silicon
+        "/usr/local/bin/ffmpeg",      # Homebrew on Intel
+        "/opt/local/bin/ffmpeg",      # MacPorts
+    ]
+    for ffmpeg_path in ffmpeg_paths:
+        if Path(ffmpeg_path).exists():
+            AudioSegment.converter = ffmpeg_path
+            # Also set ffprobe path
+            ffprobe_path = ffmpeg_path.replace("ffmpeg", "ffprobe")
+            if Path(ffprobe_path).exists():
+                pydub.utils.mediainfo_converter = ffprobe_path
+            break
 except ImportError:
     AudioSegment = None
 
