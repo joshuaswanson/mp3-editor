@@ -1094,7 +1094,7 @@ struct WaveformView: View {
         return String(format: "%d:%02d", mins, secs)
     }
 
-    private let waveformCornerRadius: CGFloat = 8  // Must match handleWidth for corners to align
+    private let waveformCornerRadius: CGFloat = 14  // Must match handleWidth for corners to align
 
     var body: some View {
         GeometryReader { geometry in
@@ -1102,7 +1102,7 @@ struct WaveformView: View {
             let height = geometry.size.height
             let waveformHeight = height - 18
 
-            let handleWidth: CGFloat = 8
+            let handleWidth: CGFloat = 14
             let innerHeight = waveformHeight
 
             VStack(spacing: 4) {
@@ -1110,7 +1110,7 @@ struct WaveformView: View {
                     // Background - only spans content area between handles
                     let contentWidth = width - handleWidth * 2
                     RoundedRectangle(cornerRadius: waveformCornerRadius)
-                        .fill(Color.secondary.opacity(0.1))
+                        .fill(Color.secondary.opacity(0.15))
                         .frame(width: contentWidth, height: innerHeight)
                         .position(x: handleWidth + contentWidth / 2, y: waveformHeight / 2)
 
@@ -1168,7 +1168,7 @@ struct WaveformView: View {
                         let leftOverlayWidth = (width - handleWidth * 2) * CGFloat(trimStart)
                         if leftOverlayWidth > 0 {
                             UnevenRoundedRectangle(topLeadingRadius: waveformCornerRadius, bottomLeadingRadius: waveformCornerRadius, bottomTrailingRadius: 0, topTrailingRadius: 0)
-                                .fill(Color.black.opacity(0.3))
+                                .fill(Color.black.opacity(0.35))
                                 .frame(width: leftOverlayWidth, height: innerHeight)
                                 .position(x: handleWidth + leftOverlayWidth / 2, y: waveformHeight / 2)
                         }
@@ -1177,7 +1177,7 @@ struct WaveformView: View {
                         let rightOverlayWidth = (width - handleWidth * 2) * CGFloat(1.0 - trimEnd)
                         if rightOverlayWidth > 0 {
                             UnevenRoundedRectangle(topLeadingRadius: 0, bottomLeadingRadius: 0, bottomTrailingRadius: waveformCornerRadius, topTrailingRadius: waveformCornerRadius)
-                                .fill(Color.black.opacity(0.3))
+                                .fill(Color.black.opacity(0.35))
                                 .frame(width: rightOverlayWidth, height: innerHeight)
                                 .position(x: width - handleWidth - rightOverlayWidth / 2, y: waveformHeight / 2)
                         }
@@ -1339,7 +1339,7 @@ struct TrimSelectionFrame: View {
     let handleWidth: CGFloat
 
     private let edgeHeight: CGFloat = 3
-    private let cornerRadius: CGFloat = 8  // Must match handleWidth for corners to align
+    private let cornerRadius: CGFloat = 14  // Must match handleWidth for corners to align
     private let handleColor = Color.yellow
 
     var body: some View {
@@ -1364,11 +1364,33 @@ struct TrimSelectionFrame: View {
                 .frame(width: handleWidth, height: waveformHeight)
                 .position(x: startX - handleWidth / 2, y: waveformHeight / 2)
 
+            // Left handle grip lines
+            HStack(spacing: 2) {
+                RoundedRectangle(cornerRadius: 0.5)
+                    .fill(Color.black.opacity(0.3))
+                    .frame(width: 1.5, height: 16)
+                RoundedRectangle(cornerRadius: 0.5)
+                    .fill(Color.black.opacity(0.3))
+                    .frame(width: 1.5, height: 16)
+            }
+            .position(x: startX - handleWidth / 2, y: waveformHeight / 2)
+
             // Right handle - concave inside, convex outside
             HandleShape(isLeft: false, outerRadius: cornerRadius, innerRadius: cornerRadius)
                 .fill(handleColor)
                 .frame(width: handleWidth, height: waveformHeight)
                 .position(x: endX + handleWidth / 2, y: waveformHeight / 2)
+
+            // Right handle grip lines
+            HStack(spacing: 2) {
+                RoundedRectangle(cornerRadius: 0.5)
+                    .fill(Color.black.opacity(0.3))
+                    .frame(width: 1.5, height: 16)
+                RoundedRectangle(cornerRadius: 0.5)
+                    .fill(Color.black.opacity(0.3))
+                    .frame(width: 1.5, height: 16)
+            }
+            .position(x: endX + handleWidth / 2, y: waveformHeight / 2)
         }
     }
 }
