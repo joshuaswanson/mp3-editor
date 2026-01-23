@@ -461,59 +461,9 @@ struct ContentView: View {
     }
 
     func loadFile(url: URL) {
-        let tagData = TagHelper.readTags(from: url.path)
-
-        if let error = tagData.error {
-            alertMessage = "Error reading tags: \(error)"
-            showAlert = true
-            title = ""
-            artist = ""
-            album = ""
-            genre = ""
-            year = ""
-            track = ""
-            disc = ""
-            bpm = ""
-            isCompilation = false
-            artworkData = nil
-            artworkMime = nil
-            artworkDeleted = false
-        } else {
-            title = tagData.title ?? ""
-            artist = tagData.artist ?? ""
-            album = tagData.album ?? ""
-            genre = tagData.genre ?? ""
-            year = tagData.year ?? ""
-            track = tagData.track ?? ""
-            disc = tagData.disc ?? ""
-            bpm = tagData.bpm ?? ""
-            isCompilation = tagData.compilation ?? false
-
-            // Load artwork
-            if let base64Data = tagData.artwork_data,
-               let data = Data(base64Encoded: base64Data) {
-                artworkData = data
-                artworkMime = tagData.artwork_mime
-            } else {
-                artworkData = nil
-                artworkMime = nil
-            }
-            artworkDeleted = false
-            whereFrom = tagData.where_from
-        }
-
-        // Store original values for restore
-        originalTitle = title
-        originalArtist = artist
-        originalAlbum = album
-        originalGenre = genre
-        originalYear = year
-        originalTrack = track
-        originalDisc = disc
-        originalBpm = bpm
-        originalIsCompilation = isCompilation
-        originalArtworkData = artworkData
-        originalWhereFrom = whereFrom
+        // Set file info immediately so UI updates
+        filePath = url.path
+        fileName = url.lastPathComponent
 
         // Reset audio editing state
         trimStart = 0.0
@@ -521,8 +471,64 @@ struct ContentView: View {
         pitchShift = 0
         speedMultiplier = 1.0
 
-        filePath = url.path
-        fileName = url.lastPathComponent
+        // Load tags in background to avoid blocking UI
+        DispatchQueue.global(qos: .userInitiated).async {
+            let tagData = TagHelper.readTags(from: url.path)
+
+            DispatchQueue.main.async {
+                if let error = tagData.error {
+                    self.alertMessage = "Error reading tags: \(error)"
+                    self.showAlert = true
+                    self.title = ""
+                    self.artist = ""
+                    self.album = ""
+                    self.genre = ""
+                    self.year = ""
+                    self.track = ""
+                    self.disc = ""
+                    self.bpm = ""
+                    self.isCompilation = false
+                    self.artworkData = nil
+                    self.artworkMime = nil
+                    self.artworkDeleted = false
+                } else {
+                    self.title = tagData.title ?? ""
+                    self.artist = tagData.artist ?? ""
+                    self.album = tagData.album ?? ""
+                    self.genre = tagData.genre ?? ""
+                    self.year = tagData.year ?? ""
+                    self.track = tagData.track ?? ""
+                    self.disc = tagData.disc ?? ""
+                    self.bpm = tagData.bpm ?? ""
+                    self.isCompilation = tagData.compilation ?? false
+
+                    // Load artwork
+                    if let base64Data = tagData.artwork_data,
+                       let data = Data(base64Encoded: base64Data) {
+                        self.artworkData = data
+                        self.artworkMime = tagData.artwork_mime
+                    } else {
+                        self.artworkData = nil
+                        self.artworkMime = nil
+                    }
+                    self.artworkDeleted = false
+                    self.whereFrom = tagData.where_from
+                }
+
+                // Store original values for restore
+                self.originalTitle = self.title
+                self.originalArtist = self.artist
+                self.originalAlbum = self.album
+                self.originalGenre = self.genre
+                self.originalYear = self.year
+                self.originalTrack = self.track
+                self.originalDisc = self.disc
+                self.originalBpm = self.bpm
+                self.originalIsCompilation = self.isCompilation
+                self.originalArtworkData = self.artworkData
+                self.originalWhereFrom = self.whereFrom
+            }
+        }
 
         // Load waveform in background
         loadWaveform(from: url.path)
@@ -1025,7 +1031,7 @@ struct AudioEditCard: View {
                     isLoading: isLoading,
                     isEnabled: isEnabled
                 )
-                .frame(height: 85)
+                .frame(height: 70)
 
                 Divider()
 
@@ -1088,96 +1094,118 @@ struct WaveformView: View {
         return String(format: "%d:%02d", mins, secs)
     }
 
+    private let waveformCornerRadius: CGFloat = 10
+
     var body: some View {
         GeometryReader { geometry in
             let width = geometry.size.width
             let height = geometry.size.height
+            let waveformHeight = height - 18
 
-            ZStack(alignment: .leading) {
-                // Background
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(Color.secondary.opacity(0.1))
+            let handleWidth: CGFloat = 8
+            let innerHeight = waveformHeight
 
-                if isLoading {
-                    // Loading indicator
-                    HStack {
-                        Spacer()
-                        ProgressView()
-                            .scaleEffect(0.8)
-                        Text("Loading waveform...")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                        Spacer()
-                    }
-                } else if samples.isEmpty {
-                    // No waveform
-                    HStack {
-                        Spacer()
-                        Text("No audio data")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                        Spacer()
-                    }
-                } else {
-                    // Waveform bars using Canvas for precise positioning
-                    Canvas { context, size in
-                        let barCount = CGFloat(samples.count)
-                        let barSpacing: CGFloat = 1
-                        let totalSpacing = barSpacing * (barCount - 1)
-                        let barWidth = (size.width - totalSpacing) / barCount
-                        let maxBarHeight = size.height
+            VStack(spacing: 4) {
+                ZStack(alignment: .leading) {
+                    // Background - only spans content area between handles
+                    let contentWidth = width - handleWidth * 2
+                    RoundedRectangle(cornerRadius: waveformCornerRadius)
+                        .fill(Color.secondary.opacity(0.1))
+                        .frame(width: contentWidth, height: innerHeight)
+                        .position(x: handleWidth + contentWidth / 2, y: waveformHeight / 2)
 
-                        for (index, sample) in samples.enumerated() {
-                            // Apply x^20 for strong visual variance
-                            let scaledSample = pow(CGFloat(sample), 20)
-                            let minHeight: CGFloat = 4
-                            let barHeight = minHeight + scaledSample * (maxBarHeight - minHeight)
-
-                            let x = CGFloat(index) * (barWidth + barSpacing)
-                            let y = (size.height - barHeight) / 2
-
-                            let position = Double(index) / Double(samples.count)
-                            let isInTrimRange = position >= trimStart && position <= trimEnd
-
-                            let rect = CGRect(x: x, y: y, width: barWidth, height: barHeight)
-                            let path = RoundedRectangle(cornerRadius: 1).path(in: rect)
-                            context.fill(path, with: .color(isInTrimRange ? .accentColor : .secondary.opacity(0.3)))
-                        }
-                    }
-                    .frame(width: width, height: height - 18)
-                    .position(x: width / 2, y: (height - 18) / 2)
-
-                    // Trim overlay - left (before start)
-                    Rectangle()
-                        .fill(Color.black.opacity(0.3))
-                        .frame(width: width * CGFloat(trimStart))
-
-                    // Trim overlay - right (after end)
-                    Rectangle()
-                        .fill(Color.black.opacity(0.3))
-                        .frame(width: width * CGFloat(1.0 - trimEnd))
-                        .offset(x: width * CGFloat(trimEnd))
-
-                    // Start handle
-                    TrimHandle(position: trimStart, width: width, height: height, isStart: true, waveformHeight: height - 18)
-
-                    // End handle
-                    TrimHandle(position: trimEnd, width: width, height: height, isStart: false, waveformHeight: height - 18)
-
-                    // Time labels
-                    VStack {
-                        Spacer()
+                    if isLoading {
+                        // Loading indicator
                         HStack {
-                            Text(formatTime(duration * trimStart))
-                                .font(.system(size: 10, weight: .medium, design: .monospaced))
+                            Spacer()
+                            ProgressView()
+                                .scaleEffect(0.8)
+                            Text("Loading waveform...")
+                                .font(.system(size: 14))
                                 .foregroundColor(.secondary)
                             Spacer()
-                            Text(formatTime(duration * trimEnd))
-                                .font(.system(size: 10, weight: .medium, design: .monospaced))
-                                .foregroundColor(.secondary)
                         }
-                        .padding(.horizontal, 4)
+                    } else if samples.isEmpty {
+                        // No waveform
+                        HStack {
+                            Spacer()
+                            Text("No audio data")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            Spacer()
+                        }
+                    } else {
+                        // Waveform bars using Canvas with horizontal padding for handles
+                        Canvas { context, size in
+                            let horizontalPadding = handleWidth
+                            let contentWidth = size.width - (horizontalPadding * 2)
+                            let barCount = CGFloat(samples.count)
+                            let barSpacing: CGFloat = 1
+                            let totalSpacing = barSpacing * (barCount - 1)
+                            let barWidth = (contentWidth - totalSpacing) / barCount
+                            let verticalPadding: CGFloat = 6
+                            let maxBarHeight = size.height - (verticalPadding * 2)
+
+                            for (index, sample) in samples.enumerated() {
+                                // Apply x^12 for visual variance
+                                let scaledSample = pow(CGFloat(sample), 12)
+                                let minHeight: CGFloat = 4
+                                let barHeight = minHeight + scaledSample * (maxBarHeight - minHeight)
+
+                                let x = horizontalPadding + CGFloat(index) * (barWidth + barSpacing)
+                                let y = (size.height - barHeight) / 2
+
+                                let position = Double(index) / Double(samples.count)
+                                let isInTrimRange = position >= trimStart && position <= trimEnd
+
+                                let rect = CGRect(x: x, y: y, width: barWidth, height: barHeight)
+                                let path = RoundedRectangle(cornerRadius: 1).path(in: rect)
+                                context.fill(path, with: .color(isInTrimRange ? .accentColor : .secondary.opacity(0.3)))
+                            }
+                        }
+
+                        // Trim overlay - left (before start) - sits inside the handle area
+                        let leftOverlayWidth = (width - handleWidth * 2) * CGFloat(trimStart)
+                        if leftOverlayWidth > 0 {
+                            UnevenRoundedRectangle(topLeadingRadius: waveformCornerRadius, bottomLeadingRadius: waveformCornerRadius, bottomTrailingRadius: 0, topTrailingRadius: 0)
+                                .fill(Color.black.opacity(0.3))
+                                .frame(width: leftOverlayWidth, height: innerHeight)
+                                .position(x: handleWidth + leftOverlayWidth / 2, y: waveformHeight / 2)
+                        }
+
+                        // Trim overlay - right (after end) - sits inside the handle area
+                        let rightOverlayWidth = (width - handleWidth * 2) * CGFloat(1.0 - trimEnd)
+                        if rightOverlayWidth > 0 {
+                            UnevenRoundedRectangle(topLeadingRadius: 0, bottomLeadingRadius: 0, bottomTrailingRadius: waveformCornerRadius, topTrailingRadius: waveformCornerRadius)
+                                .fill(Color.black.opacity(0.3))
+                                .frame(width: rightOverlayWidth, height: innerHeight)
+                                .position(x: width - handleWidth - rightOverlayWidth / 2, y: waveformHeight / 2)
+                        }
+
+                        // Selection frame
+                        TrimSelectionFrame(
+                            trimStart: trimStart,
+                            trimEnd: trimEnd,
+                            width: width,
+                            waveformHeight: waveformHeight,
+                            handleWidth: handleWidth
+                        )
                     }
+                }
+                .frame(height: waveformHeight)
+
+                // Time labels outside the waveform box
+                if !samples.isEmpty {
+                    HStack {
+                        Text(formatTime(duration * trimStart))
+                            .font(.system(size: 10, weight: .medium, design: .monospaced))
+                            .foregroundColor(.secondary)
+                        Spacer()
+                        Text(formatTime(duration * trimEnd))
+                            .font(.system(size: 10, weight: .medium, design: .monospaced))
+                            .foregroundColor(.secondary)
+                    }
+                    .padding(.horizontal, 4)
                 }
             }
             .contentShape(Rectangle())
@@ -1185,7 +1213,10 @@ struct WaveformView: View {
                 DragGesture(minimumDistance: 0)
                     .onChanged { value in
                         guard isEnabled && !samples.isEmpty else { return }
-                        let position = max(0, min(1.0, value.location.x / width))
+                        // Account for horizontal padding when calculating position
+                        let contentWidth = width - (handleWidth * 2)
+                        let adjustedX = value.location.x - handleWidth
+                        let position = max(0, min(1.0, adjustedX / contentWidth))
 
                         // On first touch, determine which handle to move based on proximity
                         if activeHandle == nil {
@@ -1211,45 +1242,131 @@ struct WaveformView: View {
     }
 }
 
-struct TrimHandle: View {
-    let position: Double
-    let width: CGFloat
-    let height: CGFloat
-    let isStart: Bool
-    let waveformHeight: CGFloat
+// Custom shape for handle with convex outside corners and concave inside corners
+struct HandleShape: Shape {
+    let isLeft: Bool
+    let outerRadius: CGFloat
+    let innerRadius: CGFloat
 
-    private let handleWidth: CGFloat = 4
-    private let gripSize: CGFloat = 14
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        let w = rect.width
+        let h = rect.height
+        let ir = min(innerRadius, w, h / 2) // Clamp inner radius
+        let or_ = min(outerRadius, w, h / 2) // Clamp outer radius
+
+        if isLeft {
+            // Left handle: convex on left (outside), concave on right (inside)
+            path.move(to: CGPoint(x: w, y: 0))
+            // Top-right concave: curves inward into the handle
+            path.addArc(center: CGPoint(x: w + ir, y: ir),
+                       radius: ir,
+                       startAngle: .degrees(270),
+                       endAngle: .degrees(180),
+                       clockwise: true)
+            // Line down right side
+            path.addLine(to: CGPoint(x: w, y: h - ir))
+            // Bottom-right concave: curves inward into the handle
+            path.addArc(center: CGPoint(x: w + ir, y: h - ir),
+                       radius: ir,
+                       startAngle: .degrees(180),
+                       endAngle: .degrees(90),
+                       clockwise: true)
+            // Line to bottom-left
+            path.addLine(to: CGPoint(x: or_, y: h))
+            // Bottom-left convex: normal outward curve
+            path.addArc(center: CGPoint(x: or_, y: h - or_),
+                       radius: or_,
+                       startAngle: .degrees(90),
+                       endAngle: .degrees(180),
+                       clockwise: false)
+            // Line up left side
+            path.addLine(to: CGPoint(x: 0, y: or_))
+            // Top-left convex: normal outward curve
+            path.addArc(center: CGPoint(x: or_, y: or_),
+                       radius: or_,
+                       startAngle: .degrees(180),
+                       endAngle: .degrees(270),
+                       clockwise: false)
+            path.closeSubpath()
+        } else {
+            // Right handle: concave on left (inside), convex on right (outside)
+            path.move(to: CGPoint(x: 0, y: 0))
+            // Line to top-right
+            path.addLine(to: CGPoint(x: w - or_, y: 0))
+            // Top-right convex: normal outward curve
+            path.addArc(center: CGPoint(x: w - or_, y: or_),
+                       radius: or_,
+                       startAngle: .degrees(270),
+                       endAngle: .degrees(0),
+                       clockwise: false)
+            // Line down right side
+            path.addLine(to: CGPoint(x: w, y: h - or_))
+            // Bottom-right convex: normal outward curve
+            path.addArc(center: CGPoint(x: w - or_, y: h - or_),
+                       radius: or_,
+                       startAngle: .degrees(0),
+                       endAngle: .degrees(90),
+                       clockwise: false)
+            // Line to bottom-left
+            path.addLine(to: CGPoint(x: 0, y: h))
+            // Bottom-left concave: curves inward into the handle
+            path.addArc(center: CGPoint(x: -ir, y: h - ir),
+                       radius: ir,
+                       startAngle: .degrees(90),
+                       endAngle: .degrees(0),
+                       clockwise: true)
+            // Line up left side
+            path.addLine(to: CGPoint(x: 0, y: ir))
+            // Top-left concave: curves inward into the handle
+            path.addArc(center: CGPoint(x: -ir, y: ir),
+                       radius: ir,
+                       startAngle: .degrees(0),
+                       endAngle: .degrees(270),
+                       clockwise: true)
+            path.closeSubpath()
+        }
+
+        return path
+    }
+}
+
+struct TrimSelectionFrame: View {
+    let trimStart: Double
+    let trimEnd: Double
+    let width: CGFloat
+    let waveformHeight: CGFloat
+    let handleWidth: CGFloat
+
+    private let edgeHeight: CGFloat = 3
+    private let cornerRadius: CGFloat = 10
+    private let handleColor = Color.yellow
 
     var body: some View {
-        VStack(spacing: 0) {
-            // Grip above waveform for start handle
-            Circle()
-                .fill(Color.accentColor)
-                .frame(width: gripSize, height: gripSize)
-                .overlay(
-                    Circle()
-                        .fill(Color.white)
-                        .frame(width: 6, height: 6)
-                )
-                .opacity(isStart ? 1 : 0)
+        // Content area is between the handle padding on each side
+        let contentWidth = width - (handleWidth * 2)
+        let startX = handleWidth + contentWidth * CGFloat(trimStart)
+        let endX = handleWidth + contentWidth * CGFloat(trimEnd)
+        let frameWidth = endX - startX + handleWidth * 2
 
-            // Handle bar - full waveform height
-            RoundedRectangle(cornerRadius: 2)
-                .fill(Color.accentColor)
+        ZStack(alignment: .topLeading) {
+            // Main rounded rectangle frame
+            RoundedRectangle(cornerRadius: cornerRadius)
+                .stroke(handleColor, lineWidth: edgeHeight)
+                .frame(width: max(frameWidth, handleWidth * 2), height: waveformHeight)
+                .position(x: startX - handleWidth + frameWidth / 2, y: waveformHeight / 2)
+
+            // Left handle - convex outside, concave inside
+            HandleShape(isLeft: true, outerRadius: cornerRadius, innerRadius: cornerRadius)
+                .fill(handleColor)
                 .frame(width: handleWidth, height: waveformHeight)
+                .position(x: startX - handleWidth / 2, y: waveformHeight / 2)
 
-            // Grip below waveform for end handle
-            Circle()
-                .fill(Color.accentColor)
-                .frame(width: gripSize, height: gripSize)
-                .overlay(
-                    Circle()
-                        .fill(Color.white)
-                        .frame(width: 6, height: 6)
-                )
-                .opacity(isStart ? 0 : 1)
+            // Right handle - concave inside, convex outside
+            HandleShape(isLeft: false, outerRadius: cornerRadius, innerRadius: cornerRadius)
+                .fill(handleColor)
+                .frame(width: handleWidth, height: waveformHeight)
+                .position(x: endX + handleWidth / 2, y: waveformHeight / 2)
         }
-        .position(x: width * CGFloat(position), y: waveformHeight / 2)
     }
 }
