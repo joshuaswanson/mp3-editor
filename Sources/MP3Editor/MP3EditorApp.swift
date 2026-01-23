@@ -1094,7 +1094,7 @@ struct WaveformView: View {
         return String(format: "%d:%02d", mins, secs)
     }
 
-    private let waveformCornerRadius: CGFloat = 10
+    private let waveformCornerRadius: CGFloat = 8  // Must match handleWidth for corners to align
 
     var body: some View {
         GeometryReader { geometry in
@@ -1339,7 +1339,7 @@ struct TrimSelectionFrame: View {
     let handleWidth: CGFloat
 
     private let edgeHeight: CGFloat = 3
-    private let cornerRadius: CGFloat = 10
+    private let cornerRadius: CGFloat = 8  // Must match handleWidth for corners to align
     private let handleColor = Color.yellow
 
     var body: some View {
@@ -1351,7 +1351,9 @@ struct TrimSelectionFrame: View {
 
         ZStack(alignment: .topLeading) {
             // Main rounded rectangle frame
-            RoundedRectangle(cornerRadius: cornerRadius)
+            // Use cornerRadius + edgeHeight/2 so the inner edge of the stroke
+            // (which is centered on the path) aligns with the waveform background
+            RoundedRectangle(cornerRadius: cornerRadius + edgeHeight / 2)
                 .stroke(handleColor, lineWidth: edgeHeight)
                 .frame(width: max(frameWidth, handleWidth * 2), height: waveformHeight)
                 .position(x: startX - handleWidth + frameWidth / 2, y: waveformHeight / 2)
