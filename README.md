@@ -17,7 +17,3 @@ Requires macOS 13.0+ and Python 3. Double-click `build` or run `./build` to buil
 ## Technical Details
 
 UI built with SwiftUI. ID3 tag reading/writing handled by Python backend using [mutagen](https://mutagen.readthedocs.io/) and [pydub](https://github.com/jiaaro/pydub) with bundled ffmpeg. Swift communicates with Python via JSON over stdin/stdout pipes. Album art transferred as base64-encoded data.
-
-## License
-
-MIT
